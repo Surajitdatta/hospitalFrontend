@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import {
   Container,
   Typography,
@@ -41,6 +42,7 @@ import {
 } from "@mui/icons-material";
 
 const API_URL = "https://hospitalbackend-eight.vercel.app/api/department";
+const ADMIN_API_URL = "https://hospitalbackend-eight.vercel.app/api/admin";
 
 const Department = () => {
   const [departments, setDepartments] = useState([]);
@@ -62,10 +64,43 @@ const Department = () => {
     message: "",
     severity: "success"
   });
+  const [adminLoading, setAdminLoading] = useState(true);
+  const [adminError, setAdminError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchDepartments();
+    const loadData = async () => {
+      await checkAdmin();
+      await fetchDepartments();
+    };
+    loadData();
   }, []);
+
+  const checkAdmin = async () => {
+    const adminData = localStorage.getItem('admin');
+    if (!adminData) {
+      setAdminLoading(false);
+      navigate('/admin');
+      return;
+    }
+
+    try {
+      const res = await axios.get(ADMIN_API_URL);
+      const admins = res.data;
+      const storedAdmin = JSON.parse(adminData);
+      const admin = admins.find(a => a.username === storedAdmin.username && a.password === storedAdmin.password);
+      
+      if (!admin) {
+        localStorage.removeItem('admin');
+        navigate('/admin');
+      }
+    } catch (err) {
+      setAdminError(err.message);
+      navigate('/admin');
+    } finally {
+      setAdminLoading(false);
+    }
+  };
 
   const fetchDepartments = async () => {
     try {
@@ -191,6 +226,32 @@ const Department = () => {
       open: false
     });
   };
+
+  if (adminLoading) {
+    return (
+      <Container maxWidth="lg" sx={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh' 
+      }}>
+        <CircularProgress size={60} />
+      </Container>
+    );
+  }
+
+  if (adminError) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {adminError}
+        </Alert>
+        <Button variant="contained" onClick={() => navigate('/admin')}>
+          Go to Login
+        </Button>
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>

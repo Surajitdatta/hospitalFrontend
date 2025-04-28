@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Typography,
@@ -18,8 +19,7 @@ import {
   Snackbar,
   Alert,
   Box,
-  useMediaQuery,
-  useTheme
+  CircularProgress
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -34,6 +34,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
 const API_URL = 'https://hospitalbackend-eight.vercel.app/api/jobs';
+const ADMIN_API_URL = 'https://hospitalbackend-eight.vercel.app/api/admin';
 
 const Jobs = () => {
   const [jobs, setJobs] = useState([]);
@@ -48,8 +49,9 @@ const Jobs = () => {
     message: '',
     severity: 'success'
   });
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [adminLoading, setAdminLoading] = useState(true);
+  const [adminError, setAdminError] = useState(null);
+  const navigate = useNavigate();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -79,8 +81,38 @@ const Jobs = () => {
   ];
 
   useEffect(() => {
-    fetchJobs();
+    const loadData = async () => {
+      await checkAdmin();
+      await fetchJobs();
+    };
+    loadData();
   }, []);
+
+  const checkAdmin = async () => {
+    const adminData = localStorage.getItem('admin');
+    if (!adminData) {
+      setAdminLoading(false);
+      navigate('/admin');
+      return;
+    }
+
+    try {
+      const res = await axios.get(ADMIN_API_URL);
+      const admins = res.data;
+      const storedAdmin = JSON.parse(adminData);
+      const admin = admins.find(a => a.username === storedAdmin.username && a.password === storedAdmin.password);
+      
+      if (!admin) {
+        localStorage.removeItem('admin');
+        navigate('/admin');
+      }
+    } catch (err) {
+      setAdminError(err.message);
+      navigate('/admin');
+    } finally {
+      setAdminLoading(false);
+    }
+  };
 
   const fetchJobs = async () => {
     try {
@@ -101,7 +133,6 @@ const Jobs = () => {
       ...formData,
       [name]: value
     });
-    // Clear error when user starts typing
     setFormErrors({
       ...formErrors,
       [name]: false
@@ -200,11 +231,9 @@ const Jobs = () => {
 
     try {
       if (currentJob) {
-        // Update existing job
         await axios.put(`${API_URL}/${currentJob._id}`, formData);
         showSnackbar('Job updated successfully');
       } else {
-        // Create new job
         await axios.post(API_URL, formData);
         showSnackbar('Job created successfully');
       }
@@ -229,6 +258,32 @@ const Jobs = () => {
   const formatDate = (dateString) => {
     return format(new Date(dateString), 'MMM dd, yyyy');
   };
+
+  if (adminLoading) {
+    return (
+      <Container maxWidth="lg" sx={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh' 
+      }}>
+        <CircularProgress size={60} />
+      </Container>
+    );
+  }
+
+  if (adminError) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {adminError}
+        </Alert>
+        <Button variant="contained" onClick={() => navigate('/admin')}>
+          Go to Login
+        </Button>
+      </Container>
+    );
+  }
 
   if (loading) {
     return (

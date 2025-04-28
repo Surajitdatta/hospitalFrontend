@@ -54,12 +54,13 @@ import {
   LocalHospital as HospitalIcon,
   Phone as PhoneIcon,
   Email as EmailIcon,
-  Description as PolicyIcon,
+  Description as DescriptionIcon,
   MonetizationOn as CashIcon,
   FilterList as FilterIcon
 } from "@mui/icons-material";
 
 const API_URL = "https://hospitalbackend-eight.vercel.app/api/insurance";
+const BASE_URL = "https://hospitalbackend-eight.vercel.app";
 
 const Insurance = () => {
   // State management
@@ -90,6 +91,8 @@ const Insurance = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [filter, setFilter] = useState("all");
   const [coverageFilter, setCoverageFilter] = useState([]);
+  const [adminLoading, setAdminLoading] = useState(true);
+  const [adminError, setAdminError] = useState(null);
 
   // Available coverage options
   const coverageOptions = [
@@ -103,16 +106,47 @@ const Insurance = () => {
     "Prescription"
   ];
 
-  // Fetch insurance data
+  // Check admin authentication
   useEffect(() => {
-    fetchInsurances();
+    const loadData = async () => {
+      await checkAdmin();
+      await fetchInsurances();
+    };
+    loadData();
   }, []);
 
+  const checkAdmin = async () => {
+    const adminData = localStorage.getItem('admin');
+    if (!adminData) {
+      setAdminLoading(false);
+      window.location.href = '/admin';
+      return;
+    }
+
+    try {
+      const res = await axios.get(`${BASE_URL}/api/admin`);
+      const admins = res.data;
+      const storedAdmin = JSON.parse(adminData);
+      const admin = admins.find(a => a.username === storedAdmin.username && a.password === storedAdmin.password);
+      
+      if (!admin) {
+        localStorage.removeItem('admin');
+        window.location.href = '/admin';
+      }
+    } catch (err) {
+      setAdminError(err.message);
+      window.location.href = '/admin';
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  // Fetch insurance data
   const fetchInsurances = async () => {
     try {
       setLoading(true);
       const response = await axios.get(API_URL);
-      setInsurances(response.data.data);
+      setInsurances(response.data.data || []);
     } catch (err) {
       console.error("Error fetching insurances:", err);
       showSnackbar("Failed to fetch insurance providers", "error");
@@ -152,6 +186,21 @@ const Insurance = () => {
   // Form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.providerName.trim()) {
+      showSnackbar("Provider name is required", "error");
+      return;
+    }
+    if (!formData.contactNumber.trim()) {
+      showSnackbar("Contact number is required", "error");
+      return;
+    }
+    if (!formData.claimsProcess.trim()) {
+      showSnackbar("Claims process description is required", "error");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -191,7 +240,11 @@ const Insurance = () => {
   const handleView = (insurance) => {
     setSelectedInsurance(insurance);
     setOpenViewDialog(true);
-    console.log(insurance )
+  };
+
+  const handleCloseView = () => {
+    setOpenViewDialog(false);
+    setSelectedInsurance(null);
   };
 
   // Delete confirmation
@@ -280,6 +333,27 @@ const Insurance = () => {
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
+
+  if (adminLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+        <CircularProgress size={60} />
+      </Box>
+    );
+  }
+
+  if (adminError) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {adminError}
+        </Alert>
+        <Button variant="contained" onClick={() => window.location.href = '/admin'}>
+          Go to Login
+        </Button>
+      </Box>
+    );
+  }
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -483,15 +557,15 @@ const Insurance = () => {
                     </TableCell>
                     <TableCell align="right">
                       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                        {/* <Tooltip title="View Details">
+                        <Tooltip title="View Details">
                           <IconButton
                             aria-label="view"
-                            color="primary"
+                            color="info"
                             onClick={() => handleView(insurance)}
                           >
                             <VisibilityIcon />
                           </IconButton>
-                        </Tooltip> */}
+                        </Tooltip>
                         <Tooltip title="Edit">
                           <IconButton
                             aria-label="edit"
@@ -561,7 +635,7 @@ const Insurance = () => {
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
-                  label="Provider Name"
+                  label="Provider Name *"
                   name="providerName"
                   value={formData.providerName}
                   onChange={handleChange}
@@ -569,12 +643,14 @@ const Insurance = () => {
                   margin="normal"
                   variant="outlined"
                   sx={{ mb: 2 }}
+                  error={!formData.providerName.trim()}
+                  helperText={!formData.providerName.trim() ? "Provider name is required" : ""}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
-                  label="Contact Number"
+                  label="Contact Number *"
                   name="contactNumber"
                   value={formData.contactNumber}
                   onChange={handleChange}
@@ -582,6 +658,8 @@ const Insurance = () => {
                   margin="normal"
                   variant="outlined"
                   sx={{ mb: 2 }}
+                  error={!formData.contactNumber.trim()}
+                  helperText={!formData.contactNumber.trim() ? "Contact number is required" : ""}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -626,7 +704,7 @@ const Insurance = () => {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  label="Claims Process"
+                  label="Claims Process *"
                   name="claimsProcess"
                   value={formData.claimsProcess}
                   onChange={handleChange}
@@ -636,6 +714,8 @@ const Insurance = () => {
                   multiline
                   rows={4}
                   sx={{ mb: 2 }}
+                  error={!formData.claimsProcess.trim()}
+                  helperText={!formData.claimsProcess.trim() ? "Claims process description is required" : ""}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -690,7 +770,7 @@ const Insurance = () => {
       {/* View Insurance Dialog */}
       <Dialog 
         open={openViewDialog} 
-        onClose={() => setOpenViewDialog(false)} 
+        onClose={handleCloseView} 
         fullWidth 
         maxWidth="md"
       >
@@ -704,7 +784,7 @@ const Insurance = () => {
           Insurance Provider Details
           <IconButton
             aria-label="close"
-            onClick={() => setOpenViewDialog(false)}
+            onClick={handleCloseView}
             sx={{
               position: "absolute",
               right: 8,
@@ -784,7 +864,7 @@ const Insurance = () => {
                   <ListItem>
                     <ListItemAvatar>
                       <Avatar sx={{ bgcolor: 'info.main' }}>
-                        <PolicyIcon />
+                        <DescriptionIcon />
                       </Avatar>
                     </ListItemAvatar>
                     <ListItemText 
@@ -825,7 +905,7 @@ const Insurance = () => {
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button 
-            onClick={() => setOpenViewDialog(false)}
+            onClick={handleCloseView}
             variant="contained"
             color="primary"
           >
@@ -910,4 +990,4 @@ const Insurance = () => {
   );
 };
 
-export default Insurance; 
+export default Insurance;

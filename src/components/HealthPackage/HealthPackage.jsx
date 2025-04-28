@@ -24,7 +24,8 @@ import {
   Switch,
   FormControlLabel,
   Grid,
-  Divider
+  Divider,
+  Alert
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -46,6 +47,8 @@ const HealthPackage = () => {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [packageToDelete, setPackageToDelete] = useState(null);
   const { enqueueSnackbar } = useSnackbar();
+  const [adminLoading, setAdminLoading] = useState(true);
+  const [adminError, setAdminError] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -65,6 +68,42 @@ const HealthPackage = () => {
   });
 
   const API_URL = 'https://hospitalbackend-eight.vercel.app/api/healthpackage';
+  const BASE_URL = 'https://hospitalbackend-eight.vercel.app';
+
+  // Check admin authentication
+  useEffect(() => {
+    const loadData = async () => {
+      await checkAdmin();
+      await fetchPackages();
+    };
+    loadData();
+  }, []);
+
+  const checkAdmin = async () => {
+    const adminData = localStorage.getItem('admin');
+    if (!adminData) {
+      setAdminLoading(false);
+      window.location.href = '/admin';
+      return;
+    }
+
+    try {
+      const res = await axios.get(`${BASE_URL}/api/admin`);
+      const admins = res.data;
+      const storedAdmin = JSON.parse(adminData);
+      const admin = admins.find(a => a.username === storedAdmin.username && a.password === storedAdmin.password);
+      
+      if (!admin) {
+        localStorage.removeItem('admin');
+        window.location.href = '/admin';
+      }
+    } catch (err) {
+      setAdminError(err.message);
+      window.location.href = '/admin';
+    } finally {
+      setAdminLoading(false);
+    }
+  };
 
   // Fetch all packages
   const fetchPackages = async () => {
@@ -78,10 +117,6 @@ const HealthPackage = () => {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchPackages();
-  }, []);
 
   // Handle dialog open/close
   const handleDialogOpen = (pkg = null) => {
@@ -177,6 +212,16 @@ const HealthPackage = () => {
       duration: !formData.duration.trim()
     };
 
+    // Validate inclusions
+    const hasEmptyInclusions = formData.inclusions.some(
+      inc => !inc.name.trim() || !inc.description.trim()
+    );
+
+    if (hasEmptyInclusions) {
+      enqueueSnackbar('All inclusions must have both name and description', { variant: 'error' });
+      return false;
+    }
+
     setErrors(newErrors);
     return !Object.values(newErrors).some(error => error);
   };
@@ -248,6 +293,27 @@ const HealthPackage = () => {
       currency: 'INR'
     }).format(amount);
   };
+
+  if (adminLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+        <CircularProgress size={60} />
+      </Box>
+    );
+  }
+
+  if (adminError) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {adminError}
+        </Alert>
+        <Button variant="contained" onClick={() => window.location.href = '/admin'}>
+          Go to Login
+        </Button>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3 }}>
@@ -463,25 +529,29 @@ const HealthPackage = () => {
                       <Grid item xs={12} md={5}>
                         <TextField
                           fullWidth
-                          label="Test/Service Name"
+                          label="Test/Service Name *"
                           value={inclusion.name}
                           onChange={(e) =>
                             handleInclusionChange(index, 'name', e.target.value)
                           }
                           margin="normal"
                           variant="outlined"
+                          error={!inclusion.name.trim()}
+                          helperText={!inclusion.name.trim() && 'Name is required'}
                         />
                       </Grid>
                       <Grid item xs={12} md={6}>
                         <TextField
                           fullWidth
-                          label="Description"
+                          label="Description *"
                           value={inclusion.description}
                           onChange={(e) =>
                             handleInclusionChange(index, 'description', e.target.value)
                           }
                           margin="normal"
                           variant="outlined"
+                          error={!inclusion.description.trim()}
+                          helperText={!inclusion.description.trim() && 'Description is required'}
                         />
                       </Grid>
                       <Grid item xs={12} md={1}>

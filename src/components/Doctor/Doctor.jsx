@@ -1,10 +1,20 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from "react-hot-toast";
-import { FiEdit2, FiTrash2, FiEye, FiX, FiPlus, FiUpload } from "react-icons/fi";
+import {
+  FiEdit2,
+  FiTrash2,
+  FiEye,
+  FiX,
+  FiPlus,
+  FiUpload,
+  FiSearch
+} from "react-icons/fi";
 import "./doctor.css";
 
 const baseURL = "https://hospitalbackend-eight.vercel.app/api/doctor";
+const ADMIN_API_URL = "https://hospitalbackend-eight.vercel.app/api/admin";
 
 const Doctor = () => {
   const [doctors, setDoctors] = useState([]);
@@ -23,18 +33,54 @@ const Doctor = () => {
   const [loading, setLoading] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [adminLoading, setAdminLoading] = useState(true);
+  const [adminError, setAdminError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchDoctors();
+    const loadData = async () => {
+      await checkAdmin();
+      await fetchDoctors();
+    };
+    loadData();
   }, []);
+
+  const checkAdmin = async () => {
+    const adminData = localStorage.getItem('admin');
+    if (!adminData) {
+      setAdminLoading(false);
+      navigate('/admin');
+      return;
+    }
+
+    try {
+      const res = await axios.get(ADMIN_API_URL);
+      const admins = res.data;
+      const storedAdmin = JSON.parse(adminData);
+      const admin = admins.find(a => a.username === storedAdmin.username && a.password === storedAdmin.password);
+      
+      if (!admin) {
+        localStorage.removeItem('admin');
+        navigate('/admin');
+      }
+    } catch (err) {
+      setAdminError(err.message);
+      navigate('/admin');
+    } finally {
+      setAdminLoading(false);
+    }
+  };
 
   const fetchDoctors = async () => {
     try {
+      setLoading(true);
       const res = await axios.get(baseURL);
       setDoctors(res.data);
     } catch (err) {
       console.error(err);
       toast.error("Failed to fetch doctors!");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -129,17 +175,44 @@ const Doctor = () => {
     doctor.qualification.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  if (adminLoading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Verifying admin credentials...</p>
+      </div>
+    );
+  }
+
+  if (adminError) {
+    return (
+      <div className="error-container">
+        <div className="error-message">
+          <h3>Authentication Error</h3>
+          <p>{adminError}</p>
+          <button onClick={() => navigate('/admin')} className="login-btn">
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="doctor-container">
       <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
       
       <div className="header-section">
-        <h1 className="doctor-title">Doctor Management</h1>
+        <h1 className="doctor-title">
+          <span className="title-icon">👨‍⚕️</span>
+          Doctor Management
+        </h1>
         <div className="action-bar">
           <div className="search-container">
+            <FiSearch className="search-icon" />
             <input
               type="text"
-              placeholder="Search doctors..."
+              placeholder="Search doctors by name, ID or qualification..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="search-input"
@@ -152,7 +225,7 @@ const Doctor = () => {
               setIsFormOpen(true);
             }}
           >
-            <FiPlus /> Add Doctor
+            <FiPlus /> Add New Doctor
           </button>
         </div>
       </div>
@@ -254,7 +327,10 @@ const Doctor = () => {
 
                 <div className="form-group full-width">
                   <label className="file-upload-label">
-                    <FiUpload /> {formData.doctorPhoto ? formData.doctorPhoto.name : "Upload Photo"}
+                    <FiUpload /> 
+                    {formData.doctorPhoto 
+                      ? formData.doctorPhoto.name 
+                      : "Upload Doctor Photo (JPEG/PNG)"}
                     <input
                       type="file"
                       name="doctorPhoto"
@@ -263,6 +339,11 @@ const Doctor = () => {
                       className="file-upload-input"
                     />
                   </label>
+                  {formData.doctorPhoto && (
+                    <div className="file-preview">
+                      Selected: {formData.doctorPhoto.name}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -272,7 +353,9 @@ const Doctor = () => {
                 </button>
                 <button type="submit" className="submit-btn" disabled={loading}>
                   {loading
-                    ? "Processing..."
+                    ? editingDoctor
+                      ? "Updating..."
+                      : "Adding..."
                     : editingDoctor
                     ? "Update Doctor"
                     : "Add Doctor"}
@@ -284,7 +367,12 @@ const Doctor = () => {
       )}
 
       <div className="doctor-list">
-        {filteredDoctors.length > 0 ? (
+        {loading && doctors.length === 0 ? (
+          <div className="loading-doctors">
+            <div className="loading-spinner"></div>
+            <p>Loading doctors...</p>
+          </div>
+        ) : filteredDoctors.length > 0 ? (
           filteredDoctors.map((doc) => (
             <div key={doc._id} className="doctor-card">
               <div className="card-image-container">
@@ -348,9 +436,23 @@ const Doctor = () => {
         ) : (
           <div className="no-results">
             {searchTerm ? (
-              <p>No doctors found matching your search.</p>
+              <div className="no-results-content">
+                <div className="no-results-icon">🔍</div>
+                <h3>No matching doctors found</h3>
+                <p>Try adjusting your search or add a new doctor</p>
+              </div>
             ) : (
-              <p>No doctors available. Add a new doctor to get started.</p>
+              <div className="no-results-content">
+                <div className="no-results-icon">👨‍⚕️</div>
+                <h3>No doctors in the system</h3>
+                <p>Get started by adding your first doctor</p>
+                <button 
+                  className="add-first-doctor-btn"
+                  onClick={() => setIsFormOpen(true)}
+                >
+                  <FiPlus /> Add First Doctor
+                </button>
+              </div>
             )}
           </div>
         )}

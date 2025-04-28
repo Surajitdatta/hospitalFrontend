@@ -14,7 +14,7 @@ const Home = () => {
     newsEvents: { count: 0, loading: true, error: null },
     users: { count: 0, loading: true, error: null },
     appointments: { count: 0, loading: true, error: null },
-    messages: { count: 0, loading: true, error: null },
+    terms: { count: 0, loading: true, error: null }, // Changed from messages to terms
     insurance: { count: 0, loading: true, error: null },
     healthPackage: { count: 0, loading: true, error: null },
     emergency: { count: 0, loading: true, error: null },
@@ -62,6 +62,9 @@ const Home = () => {
         let count = 0;
         if (endpoint === '/api/ambulance' || endpoint === '/api/emergency' || endpoint === '/api/insurance' || endpoint === '/api/healthpackage') {
           count = data.count || (Array.isArray(data.data) ? data.data.length : 0);
+        } else if (endpoint === '/api/terms') {
+          // For terms, we just want to show 1 since it's a single document
+          count = data ? 1 : 0;
         } else {
           count = Array.isArray(data) ? data.length : 0;
         }
@@ -88,7 +91,7 @@ const Home = () => {
       fetchCount('/api/news-events', 'newsEvents');
       fetchCount('/api/users', 'users');
       fetchCount('/api/appoinment', 'appointments');
-      fetchCount('/api/message', 'messages');
+      fetchCount('/api/terms', 'terms'); // Changed from /api/message to /api/terms
       fetchCount('/api/insurance', 'insurance');
       fetchCount('/api/healthpackage', 'healthPackage');
       fetchCount('/api/emergency', 'emergency');
@@ -193,10 +196,10 @@ const Home = () => {
         />
         
         <DashboardCard 
-          title="Messages" 
-          countData={counts.messages} 
+          title="Terms & Conditions" 
+          countData={counts.terms} 
           color="#ffc107" 
-          path="/admin/message" 
+          path="/admin/terms" 
         />
         
         <DashboardCard 

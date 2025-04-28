@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -30,7 +31,8 @@ import {
   Visibility as VisibilityIcon
 } from '@mui/icons-material';
 
-const API_URL = 'https://hospitalbackend-eight.vercel.app/api/reviews'; // <-- your API URL
+const API_URL = 'https://hospitalbackend-eight.vercel.app/api/reviews';
+const ADMIN_API_URL = 'https://hospitalbackend-eight.vercel.app/api/admin';
 
 const Review = () => {
   const [reviews, setReviews] = useState([]);
@@ -44,11 +46,44 @@ const Review = () => {
     comment: '',
     rating: 0
   });
-  const [openViewBar, setOpenViewBar] = useState(false); // For the view details bar
+  const [openViewBar, setOpenViewBar] = useState(false);
+  const [adminLoading, setAdminLoading] = useState(true);
+  const [adminError, setAdminError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchReviews();
+    const loadData = async () => {
+      await checkAdmin();
+      await fetchReviews();
+    };
+    loadData();
   }, []);
+
+  const checkAdmin = async () => {
+    const adminData = localStorage.getItem('admin');
+    if (!adminData) {
+      setAdminLoading(false);
+      navigate('/admin');
+      return;
+    }
+
+    try {
+      const res = await axios.get(ADMIN_API_URL);
+      const admins = res.data;
+      const storedAdmin = JSON.parse(adminData);
+      const admin = admins.find(a => a.username === storedAdmin.username && a.password === storedAdmin.password);
+      
+      if (!admin) {
+        localStorage.removeItem('admin');
+        navigate('/admin');
+      }
+    } catch (err) {
+      setAdminError(err.message);
+      navigate('/admin');
+    } finally {
+      setAdminLoading(false);
+    }
+  };
 
   const fetchReviews = async () => {
     try {
@@ -121,17 +156,38 @@ const Review = () => {
   };
 
   const handleCloseDeleteDialog = () => {
-    setOpenDeleteDialog(false); // <-- This function was missing
+    setOpenDeleteDialog(false);
   };
 
   const handleViewClick = (review) => {
     setSelectedReview(review);
-    setOpenViewBar(true); // Open the view bar when clicked
+    setOpenViewBar(true);
   };
 
   const handleCloseViewBar = () => {
-    setOpenViewBar(false); // Close the view bar
+    setOpenViewBar(false);
   };
+
+  if (adminLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress size={60} />
+      </Box>
+    );
+  }
+
+  if (adminError) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {adminError}
+        </Alert>
+        <Button variant="contained" onClick={() => navigate('/admin')} sx={{ ml: 2 }}>
+          Go to Login
+        </Button>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3 }}>

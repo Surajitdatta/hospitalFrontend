@@ -32,6 +32,7 @@ import {
 } from '@mui/icons-material';
 
 const API_URL = 'https://hospitalbackend-eight.vercel.app/api/appoinment';
+const BASE_URL = 'https://hospitalbackend-eight.vercel.app';
 
 const Appoinment = () => {
   const [appointments, setAppointments] = useState([]);
@@ -54,10 +55,42 @@ const Appoinment = () => {
     problemDescription: ''
   });
   const [errors, setErrors] = useState({});
+  const [adminLoading, setAdminLoading] = useState(true);
+  const [adminError, setAdminError] = useState(null);
 
   useEffect(() => {
-    fetchAppointments();
+    const loadData = async () => {
+      await checkAdmin();
+      await fetchAppointments();
+    };
+    loadData();
   }, []);
+
+  const checkAdmin = async () => {
+    const adminData = localStorage.getItem('admin');
+    if (!adminData) {
+      setAdminLoading(false);
+      window.location.href = '/admin';
+      return;
+    }
+
+    try {
+      const res = await axios.get(`${BASE_URL}/api/admin`);
+      const admins = res.data;
+      const storedAdmin = JSON.parse(adminData);
+      const admin = admins.find(a => a.username === storedAdmin.username && a.password === storedAdmin.password);
+      
+      if (!admin) {
+        localStorage.removeItem('admin');
+        window.location.href = '/admin';
+      }
+    } catch (err) {
+      setAdminError(err.message);
+      window.location.href = '/admin';
+    } finally {
+      setAdminLoading(false);
+    }
+  };
 
   const fetchAppointments = async () => {
     try {
@@ -199,6 +232,27 @@ const Appoinment = () => {
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
   };
+
+  if (adminLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+        <CircularProgress size={60} />
+      </Box>
+    );
+  }
+
+  if (adminError) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {adminError}
+        </Alert>
+        <Button variant="contained" onClick={() => window.location.href = '/admin'}>
+          Go to Login
+        </Button>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3 }}>

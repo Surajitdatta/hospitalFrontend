@@ -13,7 +13,8 @@ import User from './components/User/User';
 import Header from './Header/Header';
 import Footer from './components/Footer/Footer';
 import Appoinment from './components/Appoinment/Appoinment';
-import Message from './components/Message/Message';
+// import Message from './components/Message/Message';
+import Terms from './components/Terms/Terms';
 import Edit from './components/Admin/Edit';
 import Insurance from './components/Insurance/Insurance';
 import HealthPackage from './components/HealthPackage/HealthPackage';
@@ -37,7 +38,7 @@ function App() {
            <Route path="/admin/reviews" element={<Review />} />
            <Route path="/admin/users" element={<User />} />
            <Route path="/admin/appoinment" element={<Appoinment/>}/>
-           <Route path="/admin/message" element={<Message/>}/>
+           <Route path="/admin/terms" element={<Terms/>}/>
            <Route path="/admin/edit" element={<Edit/>}/>
            <Route path="/admin/insurance" element={<Insurance/>}/>
            <Route path="/admin/healthpackage" element={<HealthPackage/>}/>

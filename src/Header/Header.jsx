@@ -21,10 +21,10 @@ const Header = () => {
         <NavLink to="/admin/reviews" onClick={toggleMenu}>Reviews</NavLink>
         <NavLink to="/admin/users" onClick={toggleMenu}>Users</NavLink>
         <NavLink to="/admin/contacts" onClick={toggleMenu}>Contact</NavLink>
-        {/* <NavLink to="/admin/insurance" onClick={toggleMenu}>Insurance</NavLink> */}
-        {/* <NavLink to="/admin/healthpackage" onClick={toggleMenu}>Health Package</NavLink>
-        <NavLink to="/admin/emergencybed" onClick={toggleMenu}>Emergency</NavLink>
-        <NavLink to="/admin" onClick={toggleMenu}>Login</NavLink> */}
+        {/* <NavLink to="/admin/insurance" onClick={toggleMenu}>Insurance</NavLink>
+        <NavLink to="/admin/healthpackage" onClick={toggleMenu}>Health Package</NavLink>
+        <NavLink to="/admin/emergencybed" onClick={toggleMenu}>Emergency</NavLink> */}
+        <NavLink to="/admin" onClick={toggleMenu}>Login</NavLink>
       </div>
 
       <div className="hamburger" onClick={toggleMenu}>

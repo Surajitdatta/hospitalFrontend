@@ -3,8 +3,8 @@ import { Table, Button, Modal, Form, Input, Select, message, Card, Statistic, Sp
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
-// Use correct API endpoint format
-const API_URL = 'https://hospitalbackend-eight.vercel.app/api/emergency'; // Adjust this to match your actual API endpoint
+const API_URL = 'https://hospitalbackend-eight.vercel.app/api/emergency';
+const BASE_URL = 'https://hospitalbackend-eight.vercel.app';
 
 const EmergencyBed = () => {
   const [beds, setBeds] = useState([]);
@@ -13,6 +13,8 @@ const EmergencyBed = () => {
   const [currentBed, setCurrentBed] = useState(null);
   const [form] = Form.useForm();
   const [stats, setStats] = useState({ totalBeds: 0, availableBeds: 0 });
+  const [adminLoading, setAdminLoading] = useState(true);
+  const [adminError, setAdminError] = useState(null);
 
   const bedTypes = [
     'General ICU',
@@ -29,6 +31,33 @@ const EmergencyBed = () => {
     'ICU',
     'General Medicine'
   ];
+
+  // Check admin authentication
+  const checkAdmin = async () => {
+    const adminData = localStorage.getItem('admin');
+    if (!adminData) {
+      setAdminLoading(false);
+      window.location.href = '/admin';
+      return;
+    }
+
+    try {
+      const res = await axios.get(`${BASE_URL}/api/admin`);
+      const admins = res.data;
+      const storedAdmin = JSON.parse(adminData);
+      const admin = admins.find(a => a.username === storedAdmin.username && a.password === storedAdmin.password);
+      
+      if (!admin) {
+        localStorage.removeItem('admin');
+        window.location.href = '/admin';
+      }
+    } catch (err) {
+      setAdminError(err.message);
+      window.location.href = '/admin';
+    } finally {
+      setAdminLoading(false);
+    }
+  };
 
   const fetchBeds = async () => {
     setLoading(true);
@@ -105,7 +134,6 @@ const EmergencyBed = () => {
     if (bed) {
       form.setFieldsValue({
         ...bed,
-        // Ensure numbers are properly set
         totalBeds: bed.totalBeds,
         availableBeds: bed.availableBeds
       });
@@ -114,7 +142,11 @@ const EmergencyBed = () => {
   };
 
   useEffect(() => {
-    fetchBeds();
+    const loadData = async () => {
+      await checkAdmin();
+      await fetchBeds();
+    };
+    loadData();
   }, []);
 
   const columns = [
@@ -168,6 +200,49 @@ const EmergencyBed = () => {
       ),
     },
   ];
+
+  if (adminLoading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh' 
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ marginBottom: 16 }}>
+            <ReloadOutlined spin style={{ fontSize: 48 }} />
+          </div>
+          <p>Verifying admin credentials...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (adminError) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column' 
+      }}>
+        <Card style={{ width: 400 }}>
+          <div style={{ marginBottom: 24 }}>
+            <p style={{ color: 'red', fontSize: 16 }}>{adminError}</p>
+          </div>
+          <Button 
+            type="primary" 
+            onClick={() => window.location.href = '/admin'}
+            block
+          >
+            Go to Login
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: '20px' }}>
