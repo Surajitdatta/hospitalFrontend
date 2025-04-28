@@ -1,0 +1,105 @@
+.admin-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(to right, #dfe9f3, #ffffff);
+    padding: 20px;
+  }
+  
+  .admin-box {
+    background: #ffffff;
+    padding: 30px 40px;
+    border-radius: 16px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+    width: 100%;
+    max-width: 400px;
+    animation: fadeIn 0.6s ease-in-out;
+  }
+  
+  .admin-title {
+    text-align: center;
+    margin-bottom: 25px;
+    font-size: 26px;
+    font-weight: bold;
+    color: #222;
+  }
+  
+  .admin-form .form-group {
+    margin-bottom: 20px;
+  }
+  
+  .admin-form label {
+    display: block;
+    margin-bottom: 6px;
+    color: #444;
+    font-weight: 500;
+  }
+  
+  .admin-form input {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+  }
+  
+  .admin-form input:focus {
+    outline: none;
+    border-color: #007bff;
+  }
+  
+  .admin-btn {
+    width: 100%;
+    padding: 12px;
+    background: #007bff;
+    color: white;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  
+  .admin-btn:hover {
+    background: #0056b3;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .edit-password-box {
+    margin-top: 30px;
+    text-align: center;
+  }
+  
+  .edit-label {
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 10px;
+  }
+  
+  .edit-btn {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  
+  .edit-btn:hover {
+    background-color: #218838;
+  }
+  
