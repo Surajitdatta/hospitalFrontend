@@ -1,568 +1,705 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
 import {
-  Container,
+  Box,
   Typography,
-  Button,
-  Grid,
   Card,
   CardContent,
-  CardActions,
-  TextField,
+  Grid,
+  Divider,
+  Chip,
+  Button,
+  Paper,
+  CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  MenuItem,
+  TextField,
   IconButton,
+  FormControlLabel,
+  Switch,
   Snackbar,
-  Alert,
-  Box,
-  CircularProgress
+  Alert
 } from '@mui/material';
 import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Visibility as VisibilityIcon,
-  Close as CloseIcon
+  LocationOn,
+  Work,
+  School,
+  Event,
+  Phone,
+  Email,
+  Business,
+  CalendarToday,
+  Visibility,
+  Edit,
+  Delete,
+  Add,
+  Close,
+  Check
 } from '@mui/icons-material';
-import { format } from 'date-fns';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-
-const API_URL = 'https://hospitalbackend-eight.vercel.app/api/jobs';
-const ADMIN_API_URL = 'https://hospitalbackend-eight.vercel.app/api/admin';
 
 const Jobs = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [openForm, setOpenForm] = useState(false);
-  const [openView, setOpenView] = useState(false);
-  const [openDelete, setOpenDelete] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [currentJob, setCurrentJob] = useState(null);
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'success'
-  });
-  const [adminLoading, setAdminLoading] = useState(true);
-  const [adminError, setAdminError] = useState(null);
-  const navigate = useNavigate();
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [jobToDelete, setJobToDelete] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
+  const API_URL = "https://hospitalbackend-eight.vercel.app/api/jobs";
 
   // Form state
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
+    postName: '',
+    experience: '',
+    location: '',
+    qualification: '',
+    companyOverview: '',
+    positionSummary: '',
+    keyResponsibilities: '',
+    phoneNumber: '',
+    email: '',
     department: '',
-    lastDate: null
+    lastDate: '',
+    isActive: true
   });
-  const [formErrors, setFormErrors] = useState({
-    title: false,
-    description: false,
-    department: false,
+
+  const [errors, setErrors] = useState({
+    postName: false,
+    experience: false,
+    location: false,
+    qualification: false,
     lastDate: false
   });
 
-  const departments = [
-    'Cardiology',
-    'Neurology',
-    'Orthopedics',
-    'Pediatrics',
-    'Radiology',
-    'Emergency',
-    'Surgery',
-    'Oncology',
-    'Dermatology',
-    'Psychiatry'
-  ];
-
-  useEffect(() => {
-    const loadData = async () => {
-      await checkAdmin();
-      await fetchJobs();
-    };
-    loadData();
-  }, []);
-
-  const checkAdmin = async () => {
-    const adminData = localStorage.getItem('admin');
-    if (!adminData) {
-      setAdminLoading(false);
-      navigate('/admin');
-      return;
-    }
-
-    try {
-      const res = await axios.get(ADMIN_API_URL);
-      const admins = res.data;
-      const storedAdmin = JSON.parse(adminData);
-      const admin = admins.find(a => a.username === storedAdmin.username && a.password === storedAdmin.password);
-      
-      if (!admin) {
-        localStorage.removeItem('admin');
-        navigate('/admin');
-      }
-    } catch (err) {
-      setAdminError(err.message);
-      navigate('/admin');
-    } finally {
-      setAdminLoading(false);
-    }
-  };
-
+  // Fetch all jobs
   const fetchJobs = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(API_URL);
-      setJobs(response.data);
-      setLoading(false);
+      const response = await fetch(API_URL);
+      const data = await response.json();
+      
+      if (data.success) {
+        setJobs(data.jobs || []);
+      } else {
+        setError('Failed to fetch jobs');
+        showSnackbar('Failed to fetch jobs', 'error');
+      }
     } catch (err) {
-      setError(err.message);
+      setError('Error fetching jobs');
+      showSnackbar('Error fetching jobs', 'error');
+      console.error("Error fetching jobs", err);
+    } finally {
       setLoading(false);
-      showSnackbar('Failed to fetch jobs', 'error');
     }
   };
 
+  useEffect(() => {
+    fetchJobs();
+  }, []);
+
+  const showSnackbar = (message, severity) => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  // View job details
+  const handleViewJob = (job) => {
+    setSelectedJob(job);
+    setViewDialogOpen(true);
+  };
+
+  // Handle form dialog open/close
+  const handleFormDialogOpen = (job = null) => {
+    if (job) {
+      setCurrentJob(job);
+      setIsEditMode(true);
+      setFormData({
+        postName: job.postName,
+        experience: job.experience,
+        location: job.location,
+        qualification: job.qualification,
+        companyOverview: job.companyOverview,
+        positionSummary: job.positionSummary,
+        keyResponsibilities: job.keyResponsibilities,
+        phoneNumber: job.phoneNumber,
+        email: job.email,
+        department: job.department,
+        lastDate: job.lastDate.split('T')[0],
+        isActive: job.isActive !== undefined ? job.isActive : true
+      });
+    } else {
+      setIsEditMode(false);
+      setFormData({
+        postName: '',
+        experience: '',
+        location: '',
+        qualification: '',
+        companyOverview: '',
+        positionSummary: '',
+        keyResponsibilities: '',
+        phoneNumber: '',
+        email: '',
+        department: '',
+        lastDate: '',
+        isActive: true
+      });
+    }
+    setFormDialogOpen(true);
+  };
+
+  const handleFormDialogClose = () => {
+    setFormDialogOpen(false);
+    setCurrentJob(null);
+    setErrors({
+      postName: false,
+      experience: false,
+      location: false,
+      qualification: false,
+      lastDate: false
+    });
+  };
+
+  // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
       [name]: value
     });
-    setFormErrors({
-      ...formErrors,
-      [name]: false
-    });
+
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors({
+        ...errors,
+        [name]: false
+      });
+    }
   };
 
-  const handleDateChange = (date) => {
-    setFormData({
-      ...formData,
-      lastDate: date
-    });
-    setFormErrors({
-      ...formErrors,
-      lastDate: false
-    });
-  };
-
+  // Validate form
   const validateForm = () => {
-    const errors = {
-      title: !formData.title,
-      description: !formData.description,
-      department: !formData.department,
-      lastDate: !formData.lastDate
+    const newErrors = {
+      postName: !formData.postName.trim(),
+      experience: !formData.experience.trim(),
+      location: !formData.location.trim(),
+      qualification: !formData.qualification.trim(),
+      lastDate: !formData.lastDate.trim()
     };
-    setFormErrors(errors);
-    return !Object.values(errors).some(error => error);
+
+    setErrors(newErrors);
+    return !Object.values(newErrors).some(error => error);
   };
 
-  const resetForm = () => {
-    setFormData({
-      title: '',
-      description: '',
-      department: '',
-      lastDate: null
-    });
-    setFormErrors({
-      title: false,
-      description: false,
-      department: false,
-      lastDate: false
-    });
-  };
-
-  const handleOpenAdd = () => {
-    setCurrentJob(null);
-    resetForm();
-    setOpenForm(true);
-  };
-
-  const handleOpenEdit = (job) => {
-    setCurrentJob(job);
-    setFormData({
-      title: job.title,
-      description: job.description,
-      department: job.department,
-      lastDate: new Date(job.lastDate)
-    });
-    setOpenForm(true);
-  };
-
-  const handleOpenView = (job) => {
-    setCurrentJob(job);
-    setOpenView(true);
-  };
-
-  const handleOpenDelete = (job) => {
-    setCurrentJob(job);
-    setOpenDelete(true);
-  };
-
-  const handleClose = () => {
-    setOpenForm(false);
-    setOpenView(false);
-    setOpenDelete(false);
-  };
-
-  const showSnackbar = (message, severity = 'success') => {
-    setSnackbar({
-      open: true,
-      message,
-      severity
-    });
-  };
-
-  const handleCloseSnackbar = () => {
-    setSnackbar({
-      ...snackbar,
-      open: false
-    });
-  };
-
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) return;
+
+    if (!validateForm()) {
+      showSnackbar('Please fill all required fields correctly', 'error');
+      return;
+    }
 
     try {
-      if (currentJob) {
-        await axios.put(`${API_URL}/${currentJob._id}`, formData);
-        showSnackbar('Job updated successfully');
+      setLoading(true);
+      const payload = {
+        ...formData,
+        lastDate: new Date(formData.lastDate).toISOString()
+      };
+
+      let response;
+      if (isEditMode) {
+        response = await fetch(`${API_URL}/${currentJob._id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload)
+        });
       } else {
-        await axios.post(API_URL, formData);
-        showSnackbar('Job created successfully');
+        response = await fetch(API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload)
+        });
       }
-      fetchJobs();
-      handleClose();
-    } catch (err) {
-      showSnackbar(err.response?.data?.message || 'Operation failed', 'error');
+
+      const data = await response.json();
+
+      if (data.success) {
+        showSnackbar(
+          isEditMode ? 'Job updated successfully' : 'Job created successfully',
+          'success'
+        );
+        fetchJobs();
+        handleFormDialogClose();
+      } else {
+        throw new Error(data.message || 'Operation failed');
+      }
+    } catch (error) {
+      showSnackbar(error.message || 'Operation failed', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDelete = async () => {
+  // Handle delete confirmation
+  const handleDeleteClick = (job) => {
+    setJobToDelete(job);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
     try {
-      await axios.delete(`${API_URL}/${currentJob._id}`);
-      showSnackbar('Job deleted successfully');
-      fetchJobs();
-      handleClose();
-    } catch (err) {
-      showSnackbar(err.response?.data?.message || 'Delete failed', 'error');
+      setLoading(true);
+      const response = await fetch(`${API_URL}/${jobToDelete._id}`, {
+        method: 'DELETE'
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        showSnackbar('Job deleted successfully', 'success');
+        fetchJobs();
+      } else {
+        throw new Error('Failed to delete job');
+      }
+    } catch (error) {
+      showSnackbar(error.message || 'Failed to delete job', 'error');
+    } finally {
+      setLoading(false);
+      setDeleteConfirmOpen(false);
+      setJobToDelete(null);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmOpen(false);
+    setJobToDelete(null);
   };
 
   const formatDate = (dateString) => {
-    return format(new Date(dateString), 'MMM dd, yyyy');
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
-  if (adminLoading) {
-    return (
-      <Container maxWidth="lg" sx={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh' 
-      }}>
-        <CircularProgress size={60} />
-      </Container>
-    );
-  }
+  if (loading && !jobs.length) return (
+    <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+      <CircularProgress size={60} />
+    </Box>
+  );
 
-  if (adminError) {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {adminError}
-        </Alert>
-        <Button variant="contained" onClick={() => navigate('/admin')}>
-          Go to Login
-        </Button>
-      </Container>
-    );
-  }
-
-  if (loading) {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Typography variant="h6">Loading jobs...</Typography>
-      </Container>
-    );
-  }
-
-  if (error) {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Typography variant="h6" color="error">
-          Error: {error}
-        </Typography>
-      </Container>
-    );
-  }
+  if (error) return (
+    <Box p={3}>
+      <Typography color="error">{error}</Typography>
+    </Box>
+  );
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-          <Typography variant="h4" component="h1">
-            Job Openings
+    <Box sx={{ p: 3, maxWidth: 1200, margin: '0 auto' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
+          Job Portal Management
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => handleFormDialogOpen()}
+          sx={{ borderRadius: '8px' }}
+        >
+          Post New Job
+        </Button>
+      </Box>
+
+      <Grid container spacing={3}>
+        {jobs.length === 0 ? (
+          <Grid item xs={12}>
+            <Paper elevation={0} sx={{ p: 3, textAlign: 'center' }}>
+              <Typography variant="h6">No job openings currently available</Typography>
+            </Paper>
+          </Grid>
+        ) : (
+          jobs.map((job) => (
+            <Grid item xs={12} sm={6} md={4} key={job._id}>
+              <Card elevation={3} sx={{ height: '100%', display: 'flex', flexDirection: 'column', borderRadius: 2 }}>
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 1.5 }}>
+                    {job.postName}
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <LocationOn color="action" sx={{ mr: 1, fontSize: '1rem' }} />
+                    <Typography variant="body2">{job.location}</Typography>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Work color="action" sx={{ mr: 1, fontSize: '1rem' }} />
+                    <Typography variant="body2">{job.experience}</Typography>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <School color="action" sx={{ mr: 1, fontSize: '1rem' }} />
+                    <Typography variant="body2">{job.qualification}</Typography>
+                  </Box>
+                  
+                  <Divider sx={{ my: 1 }} />
+                  
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
+                    <Chip 
+                      label={job.isActive ? 'Active' : 'Inactive'} 
+                      size="small" 
+                      color={job.isActive ? 'success' : 'error'} 
+                    />
+                    <Box>
+                      <IconButton color="primary" onClick={() => handleViewJob(job)}>
+                        <Visibility />
+                      </IconButton>
+                      <IconButton color="secondary" onClick={() => handleFormDialogOpen(job)}>
+                        <Edit />
+                      </IconButton>
+                      <IconButton color="error" onClick={() => handleDeleteClick(job)}>
+                        <Delete />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))
+        )}
+      </Grid>
+
+      {/* View Job Dialog */}
+      <Dialog 
+        open={viewDialogOpen} 
+        onClose={() => setViewDialogOpen(false)} 
+        maxWidth="md" 
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            {selectedJob?.postName} Details
           </Typography>
+          <IconButton onClick={() => setViewDialogOpen(false)}>
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedJob && (
+            <Box>
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                    Basic Information
+                  </Typography>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <LocationOn sx={{ mr: 1, color: 'text.secondary' }} />
+                      <strong>Location:</strong> &nbsp;{selectedJob.location}
+                    </Typography>
+                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Work sx={{ mr: 1, color: 'text.secondary' }} />
+                      <strong>Experience:</strong> &nbsp;{selectedJob.experience}
+                    </Typography>
+                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <School sx={{ mr: 1, color: 'text.secondary' }} />
+                      <strong>Qualification:</strong> &nbsp;{selectedJob.qualification}
+                    </Typography>
+                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Business sx={{ mr: 1, color: 'text.secondary' }} />
+                      <strong>Department:</strong> &nbsp;{selectedJob.department}
+                    </Typography>
+                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <CalendarToday sx={{ mr: 1, color: 'text.secondary' }} />
+                      <strong>Last Date:</strong> &nbsp;{formatDate(selectedJob.lastDate)}
+                    </Typography>
+                  </Box>
+
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                    Contact Information
+                  </Typography>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Phone sx={{ mr: 1, color: 'text.secondary' }} />
+                      <strong>Phone:</strong> &nbsp;{selectedJob.phoneNumber}
+                    </Typography>
+                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Email sx={{ mr: 1, color: 'text.secondary' }} />
+                      <strong>Email:</strong> &nbsp;{selectedJob.email}
+                    </Typography>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                    Company Overview
+                  </Typography>
+                  <Typography variant="body2" paragraph sx={{ wordWrap: 'break-word', mb: 2 }}>
+                    {selectedJob.companyOverview}
+                  </Typography>
+
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                    Position Summary
+                  </Typography>
+                  <Typography variant="body2" paragraph sx={{ wordWrap: 'break-word', mb: 2 }}>
+                    {selectedJob.positionSummary}
+                  </Typography>
+
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                    Key Responsibilities
+                  </Typography>
+                  <Typography variant="body2" paragraph sx={{ wordWrap: 'break-word' }}>
+                    {selectedJob.keyResponsibilities}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setViewDialogOpen(false)} color="primary">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add/Edit Form Dialog */}
+      <Dialog open={formDialogOpen} onClose={handleFormDialogClose} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {isEditMode ? 'Edit Job Posting' : 'Create New Job Posting'}
+          <IconButton onClick={handleFormDialogClose}>
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <form onSubmit={handleSubmit}>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Job Title *"
+                  name="postName"
+                  value={formData.postName}
+                  onChange={handleInputChange}
+                  error={errors.postName}
+                  helperText={errors.postName && 'Job title is required'}
+                  margin="normal"
+                  variant="outlined"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Department *"
+                  name="department"
+                  value={formData.department}
+                  onChange={handleInputChange}
+                  margin="normal"
+                  variant="outlined"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Experience *"
+                  name="experience"
+                  value={formData.experience}
+                  onChange={handleInputChange}
+                  error={errors.experience}
+                  helperText={errors.experience && 'Experience is required'}
+                  margin="normal"
+                  variant="outlined"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Location *"
+                  name="location"
+                  value={formData.location}
+                  onChange={handleInputChange}
+                  error={errors.location}
+                  helperText={errors.location && 'Location is required'}
+                  margin="normal"
+                  variant="outlined"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Qualification *"
+                  name="qualification"
+                  value={formData.qualification}
+                  onChange={handleInputChange}
+                  error={errors.qualification}
+                  helperText={errors.qualification && 'Qualification is required'}
+                  margin="normal"
+                  variant="outlined"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Application Deadline *"
+                  name="lastDate"
+                  type="date"
+                  value={formData.lastDate}
+                  onChange={handleInputChange}
+                  error={errors.lastDate}
+                  helperText={errors.lastDate && 'Deadline is required'}
+                  margin="normal"
+                  variant="outlined"
+                  InputLabelProps={{
+                    shrink: true
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Company Overview"
+                  name="companyOverview"
+                  value={formData.companyOverview}
+                  onChange={handleInputChange}
+                  margin="normal"
+                  variant="outlined"
+                  multiline
+                  rows={3}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Position Summary"
+                  name="positionSummary"
+                  value={formData.positionSummary}
+                  onChange={handleInputChange}
+                  margin="normal"
+                  variant="outlined"
+                  multiline
+                  rows={3}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Key Responsibilities"
+                  name="keyResponsibilities"
+                  value={formData.keyResponsibilities}
+                  onChange={handleInputChange}
+                  margin="normal"
+                  variant="outlined"
+                  multiline
+                  rows={4}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Contact Phone"
+                  name="phoneNumber"
+                  value={formData.phoneNumber}
+                  onChange={handleInputChange}
+                  margin="normal"
+                  variant="outlined"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Contact Email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  margin="normal"
+                  variant="outlined"
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.isActive}
+                      onChange={(e) =>
+                        setFormData({ ...formData, isActive: e.target.checked })
+                      }
+                      color="primary"
+                    />
+                  }
+                  label={formData.isActive ? 'Active Listing' : 'Inactive Listing'}
+                  labelPlacement="start"
+                />
+              </Grid>
+            </Grid>
+          </form>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleFormDialogClose} variant="outlined" color="secondary">
+            Cancel
+          </Button>
           <Button
+            onClick={handleSubmit}
             variant="contained"
             color="primary"
-            startIcon={<AddIcon />}
-            onClick={handleOpenAdd}
+            startIcon={loading ? <CircularProgress size={20} /> : <Check />}
+            disabled={loading}
           >
-            Add Job
+            {isEditMode ? 'Update' : 'Create'}
           </Button>
-        </Box>
+        </DialogActions>
+      </Dialog>
 
-        {jobs.length === 0 ? (
-          <Typography variant="body1" sx={{ textAlign: 'center', py: 4 }}>
-            No job openings available at the moment.
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onClose={handleDeleteCancel}>
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete the "{jobToDelete?.postName}" job posting?
           </Typography>
-        ) : (
-          <Grid container spacing={3}>
-            {jobs.map((job) => (
-              <Grid item xs={12} sm={6} md={4} key={job._id}>
-                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Typography variant="h6" component="h2" gutterBottom>
-                      {job.title}
-                    </Typography>
-                    <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                      Department: {job.department}
-                    </Typography>
-                    <Typography variant="body2" paragraph sx={{
-                      display: '-webkit-box',
-                      WebkitLineClamp: 3,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}>
-                      {job.description}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Posted: {formatDate(job.postedOn)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      Deadline: {formatDate(job.lastDate)}
-                    </Typography>
-                  </CardContent>
-                  <CardActions>
-                    <IconButton
-                      aria-label="view"
-                      color="primary"
-                      onClick={() => handleOpenView(job)}
-                    >
-                      <VisibilityIcon />
-                    </IconButton>
-                    <IconButton
-                      aria-label="edit"
-                      color="secondary"
-                      onClick={() => handleOpenEdit(job)}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      aria-label="delete"
-                      color="error"
-                      onClick={() => handleOpenDelete(job)}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </CardActions>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        )}
-
-        {/* Add/Edit Job Dialog */}
-        <Dialog open={openForm} onClose={handleClose} fullWidth maxWidth="sm">
-          <DialogTitle>
-            {currentJob ? 'Edit Job' : 'Add New Job'}
-            <IconButton
-              aria-label="close"
-              onClick={handleClose}
-              sx={{
-                position: 'absolute',
-                right: 8,
-                top: 8,
-                color: (theme) => theme.palette.grey[500],
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </DialogTitle>
-          <form onSubmit={handleSubmit}>
-            <DialogContent dividers>
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Job Title"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleInputChange}
-                    error={formErrors.title}
-                    helperText={formErrors.title ? 'Title is required' : ''}
-                    margin="normal"
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Description"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    error={formErrors.description}
-                    helperText={formErrors.description ? 'Description is required' : ''}
-                    margin="normal"
-                    multiline
-                    rows={4}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    select
-                    fullWidth
-                    label="Department"
-                    name="department"
-                    value={formData.department}
-                    onChange={handleInputChange}
-                    error={formErrors.department}
-                    helperText={formErrors.department ? 'Department is required' : ''}
-                    margin="normal"
-                  >
-                    {departments.map((dept) => (
-                      <MenuItem key={dept} value={dept}>
-                        {dept}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <DatePicker
-                    label="Last Date to Apply"
-                    value={formData.lastDate}
-                    onChange={handleDateChange}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        fullWidth
-                        margin="normal"
-                        error={formErrors.lastDate}
-                        helperText={formErrors.lastDate ? 'Last date is required' : ''}
-                      />
-                    )}
-                  />
-                </Grid>
-              </Grid>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={handleClose}>Cancel</Button>
-              <Button type="submit" variant="contained" color="primary">
-                {currentJob ? 'Update' : 'Create'}
-              </Button>
-            </DialogActions>
-          </form>
-        </Dialog>
-
-        {/* View Job Dialog */}
-        <Dialog open={openView} onClose={handleClose} fullWidth maxWidth="sm">
-          <DialogTitle>
-            Job Details
-            <IconButton
-              aria-label="close"
-              onClick={handleClose}
-              sx={{
-                position: 'absolute',
-                right: 8,
-                top: 8,
-                color: (theme) => theme.palette.grey[500],
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </DialogTitle>
-          <DialogContent dividers>
-            {currentJob && (
-              <Box>
-                <Typography variant="h6" gutterBottom>
-                  {currentJob.title}
-                </Typography>
-                <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                  Department: {currentJob.department}
-                </Typography>
-                <Typography variant="body1" paragraph sx={{ whiteSpace: 'pre-line' }}>
-                  {currentJob.description}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  Posted: {formatDate(currentJob.postedOn)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  Deadline: {formatDate(currentJob.lastDate)}
-                </Typography>
-              </Box>
-            )}
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose}>Close</Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* Delete Confirmation Dialog */}
-        <Dialog open={openDelete} onClose={handleClose} maxWidth="xs" fullWidth>
-          <DialogTitle>
-            Confirm Delete
-            <IconButton
-              aria-label="close"
-              onClick={handleClose}
-              sx={{
-                position: 'absolute',
-                right: 8,
-                top: 8,
-                color: (theme) => theme.palette.grey[500],
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </DialogTitle>
-          <DialogContent dividers>
-            <Typography variant="body1">
-              Are you sure you want to delete the job "{currentJob?.title}"?
-            </Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose}>Cancel</Button>
-            <Button onClick={handleDelete} variant="contained" color="error">
-              Delete
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* Snackbar for notifications */}
-        <Snackbar
-          open={snackbar.open}
-          autoHideDuration={6000}
-          onClose={handleCloseSnackbar}
-          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-        >
-          <Alert
-            onClose={handleCloseSnackbar}
-            severity={snackbar.severity}
-            sx={{ width: '100%' }}
+          <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} color="primary">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            startIcon={loading ? <CircularProgress size={20} /> : <Delete />}
+            disabled={loading}
           >
-            {snackbar.message}
-          </Alert>
-        </Snackbar>
-      </Container>
-    </LocalizationProvider>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 };
 

@@ -49,6 +49,7 @@ const Appoinment = () => {
   });
   const [formData, setFormData] = useState({
     patientName: '',
+    doctorName: '',
     patientPhone: '',
     patientEmail: '',
     preferredDate: '',
@@ -112,6 +113,7 @@ const Appoinment = () => {
   const validateForm = () => {
     const newErrors = {};
     if (!formData.patientName.trim()) newErrors.patientName = 'Patient name is required';
+    if (!formData.doctorName.trim()) newErrors.doctorName = 'Doctor name is required';
     if (!formData.patientPhone.trim()) newErrors.patientPhone = 'Phone number is required';
     if (!formData.problemDescription.trim()) newErrors.problemDescription = 'Problem description is required';
     setErrors(newErrors);
@@ -137,6 +139,7 @@ const Appoinment = () => {
     setCurrentAppointment(null);
     setFormData({
       patientName: '',
+      doctorName: '',
       patientPhone: '',
       patientEmail: '',
       preferredDate: '',
@@ -150,6 +153,7 @@ const Appoinment = () => {
     setCurrentAppointment(appointment);
     setFormData({
       patientName: appointment.patientName,
+      doctorName: appointment.doctorName,
       patientPhone: appointment.patientPhone,
       patientEmail: appointment.patientEmail || '',
       preferredDate: appointment.preferredDate ? appointment.preferredDate.split('T')[0] : '',
@@ -291,6 +295,7 @@ const Appoinment = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Patient Name</TableCell>
+                <TableCell>Doctor</TableCell>
                 <TableCell>Phone</TableCell>
                 <TableCell>Email</TableCell>
                 <TableCell>Preferred Date</TableCell>
@@ -302,6 +307,7 @@ const Appoinment = () => {
               {appointments.map((appointment) => (
                 <TableRow key={appointment._id}>
                   <TableCell>{appointment.patientName}</TableCell>
+                  <TableCell>{appointment.doctorName}</TableCell>
                   <TableCell>{appointment.patientPhone}</TableCell>
                   <TableCell>{appointment.patientEmail || '-'}</TableCell>
                   <TableCell>
@@ -355,6 +361,18 @@ const Appoinment = () => {
               margin="normal"
               error={!!errors.patientName}
               helperText={errors.patientName}
+              required
+            />
+
+            <TextField
+              name="doctorName"
+              label="Doctor Name *"
+              value={formData.doctorName}
+              onChange={handleInputChange}
+              fullWidth
+              margin="normal"
+              error={!!errors.doctorName}
+              helperText={errors.doctorName}
               required
             />
 
@@ -421,7 +439,8 @@ const Appoinment = () => {
         <DialogContent>
           <Typography>
             Are you sure you want to delete appointment for{' '}
-            <strong>{currentAppointment?.patientName}</strong>?
+            <strong>{currentAppointment?.patientName}</strong> with{' '}
+            <strong>{currentAppointment?.doctorName}</strong>?
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -448,7 +467,8 @@ const Appoinment = () => {
 
           {viewAppointment && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography><strong>Name:</strong> {viewAppointment.patientName}</Typography>
+              <Typography><strong>Patient Name:</strong> {viewAppointment.patientName}</Typography>
+              <Typography><strong>Doctor:</strong> {viewAppointment.doctorName}</Typography>
               <Typography><strong>Phone:</strong> {viewAppointment.patientPhone}</Typography>
               <Typography><strong>Email:</strong> {viewAppointment.patientEmail || '-'}</Typography>
               <Typography><strong>Preferred Date:</strong> {viewAppointment.preferredDate ? new Date(viewAppointment.preferredDate).toLocaleDateString() : '-'}</Typography>

@@ -60,7 +60,7 @@ const Home = () => {
         const data = await res.json();
         
         let count = 0;
-        if (endpoint === '/api/ambulance' || endpoint === '/api/emergency' || endpoint === '/api/insurance' || endpoint === '/api/healthpackage') {
+        if (endpoint === '/api/ambulance' || endpoint === '/api/emergency' || endpoint === '/api/insurance' || endpoint === '/api/healthpackage' || endpoint === '/api/jobs') {
           count = data.count || (Array.isArray(data.data) ? data.data.length : 0);
         } else if (endpoint === '/api/terms') {
           // For terms, we just want to show 1 since it's a single document
